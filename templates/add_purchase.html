@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+
+{% block title %}Registrar Compra - ERP Mercado{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1><i class="fas fa-shopping-cart"></i> Registrar Compra</h1>
+    <a href="{{ url_for('purchases') }}" class="btn btn-secondary">
+        <i class="fas fa-arrow-left"></i> Voltar
+    </a>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <form method="POST">
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="product_id" class="form-label">Produto *</label>
+                        <select class="form-select" id="product_id" name="product_id" required>
+                            <option value="">Selecione um produto...</option>
+                            {% for product in products %}
+                            <option value="{{ product.id }}">{{ product.name }} - {{ product.category }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="supplier" class="form-label">Fornecedor</label>
+                        <input type="text" class="form-control" id="supplier" name="supplier" placeholder="Nome do fornecedor">
+                    </div>
+                </div>
+            </div>
+            
+            <div class="row">
+                <div class="col-md-4">
+                    <div class="mb-3">
+                        <label for="quantity" class="form-label">Quantidade *</label>
+                        <input type="number" class="form-control" id="quantity" name="quantity" min="1" required>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="mb-3">
+                        <label for="unit_cost" class="form-label">Custo Unitário (R$) *</label>
+                        <input type="number" class="form-control" id="unit_cost" name="unit_cost" step="0.01" min="0" required>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="mb-3">
+                        <label for="total_cost" class="form-label">Total (R$)</label>
+                        <input type="number" class="form-control" id="total_cost" step="0.01" readonly>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="mb-3">
+                <label for="notes" class="form-label">Observações</label>
+                <textarea class="form-control" id="notes" name="notes" rows="3" placeholder="Observações sobre a compra..."></textarea>
+            </div>
+            
+            <div class="d-flex gap-2">
+                <button type="submit" class="btn btn-success">
+                    <i class="fas fa-save"></i> Registrar Compra
+                </button>
+                <a href="{{ url_for('purchases') }}" class="btn btn-secondary">
+                    <i class="fas fa-times"></i> Cancelar
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const quantityInput = document.getElementById('quantity');
+    const unitCostInput = document.getElementById('unit_cost');
+    const totalCostInput = document.getElementById('total_cost');
+    
+    function updateTotal() {
+        const quantity = parseFloat(quantityInput.value) || 0;
+        const unitCost = parseFloat(unitCostInput.value) || 0;
+        const total = quantity * unitCost;
+        totalCostInput.value = total.toFixed(2);
+    }
+    
+    quantityInput.addEventListener('input', updateTotal);
+    unitCostInput.addEventListener('input', updateTotal);
+});
+</script>
+{% endblock %}

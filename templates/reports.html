@@ -1,0 +1,174 @@
+{% extends "base.html" %}
+
+{% block title %}Relatórios - ERP Mercado{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1><i class="fas fa-chart-bar"></i> Relatórios</h1>
+</div>
+
+<!-- Resumo de Vendas -->
+<div class="row mb-4">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-calendar-day"></i> Vendas de Hoje</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-6">
+                        <h3 class="text-primary">R$ {{ "%.2f"|format(daily_sales[0] or 0) }}</h3>
+                        <p class="text-muted">Faturamento</p>
+                    </div>
+                    <div class="col-6">
+                        <h3 class="text-success">{{ daily_sales[1] or 0 }}</h3>
+                        <p class="text-muted">Transações</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-calendar-alt"></i> Vendas do Mês</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-6">
+                        <h3 class="text-info">R$ {{ "%.2f"|format(monthly_sales[0] or 0) }}</h3>
+                        <p class="text-muted">Faturamento</p>
+                    </div>
+                    <div class="col-6">
+                        <h3 class="text-warning">{{ monthly_sales[1] or 0 }}</h3>
+                        <p class="text-muted">Transações</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Produtos Mais Vendidos -->
+<div class="card mb-4">
+    <div class="card-header">
+        <h5><i class="fas fa-trophy"></i> Produtos Mais Vendidos (Este Mês)</h5>
+    </div>
+    <div class="card-body">
+        {% if top_products %}
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Posição</th>
+                        <th>Produto</th>
+                        <th>Quantidade Vendida</th>
+                        <th>Receita Total</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for product in top_products %}
+                    <tr>
+                        <td>
+                            {% if loop.index <= 3 %}
+                                <i class="fas fa-medal text-warning"></i>
+                            {% endif %}
+                            {{ loop.index }}º
+                        </td>
+                        <td>{{ product[0] }}</td>
+                        <td>{{ product[1] }}</td>
+                        <td>R$ {{ "%.2f"|format(product[2]) }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p class="text-muted text-center">Nenhuma venda registrada este mês.</p>
+        {% endif %}
+    </div>
+</div>
+
+<div class="row">
+    <!-- Compras Recentes -->
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-shopping-cart"></i> Compras Recentes</h5>
+            </div>
+            <div class="card-body">
+                {% if recent_purchases %}
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Data</th>
+                                <th>Produto</th>
+                                <th>Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for purchase in recent_purchases %}
+                            <tr>
+                                <td>{{ purchase.created_at.strftime('%d/%m') }}</td>
+                                <td>{{ purchase.product.name }}</td>
+                                <td>R$ {{ "%.2f"|format(purchase.total_cost) }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                <div class="text-center mt-3">
+                    <a href="{{ url_for('purchases') }}" class="btn btn-outline-primary btn-sm">
+                        Ver Todas as Compras
+                    </a>
+                </div>
+                {% else %}
+                <p class="text-muted text-center">Nenhuma compra registrada.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <!-- Vendas Recentes -->
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-cash-register"></i> Vendas Recentes</h5>
+            </div>
+            <div class="card-body">
+                {% if recent_sales %}
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Data</th>
+                                <th>Produto</th>
+                                <th>Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for sale in recent_sales %}
+                            <tr>
+                                <td>{{ sale.created_at.strftime('%d/%m') }}</td>
+                                <td>{{ sale.product.name }}</td>
+                                <td>R$ {{ "%.2f"|format(sale.total_price) }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                <div class="text-center mt-3">
+                    <a href="{{ url_for('sales') }}" class="btn btn-outline-success btn-sm">
+                        Ver Todas as Vendas
+                    </a>
+                </div>
+                {% else %}
+                <p class="text-muted text-center">Nenhuma venda registrada.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

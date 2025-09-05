@@ -1,0 +1,117 @@
+{% extends "base.html" %}
+
+{% block title %}Registrar Venda - ERP Mercado{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1><i class="fas fa-cash-register"></i> Registrar Venda</h1>
+    <a href="{{ url_for('sales') }}" class="btn btn-secondary">
+        <i class="fas fa-arrow-left"></i> Voltar
+    </a>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <form method="POST">
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="product_id" class="form-label">Produto *</label>
+                        <select class="form-select" id="product_id" name="product_id" required>
+                            <option value="">Selecione um produto...</option>
+                            {% for product in products %}
+                            <option value="{{ product.id }}" data-price="{{ product.price }}" data-stock="{{ product.stock_quantity }}">
+                                {{ product.name }} - Estoque: {{ product.stock_quantity }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="customer_name" class="form-label">Cliente</label>
+                        <input type="text" class="form-control" id="customer_name" name="customer_name" placeholder="Nome do cliente">
+                    </div>
+                </div>
+            </div>
+            
+            <div class="row">
+                <div class="col-md-4">
+                    <div class="mb-3">
+                        <label for="quantity" class="form-label">Quantidade *</label>
+                        <input type="number" class="form-control" id="quantity" name="quantity" min="1" required>
+                        <div class="form-text">Estoque disponível: <span id="available_stock">-</span></div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="mb-3">
+                        <label for="unit_price" class="form-label">Preço Unitário (R$) *</label>
+                        <input type="number" class="form-control" id="unit_price" name="unit_price" step="0.01" min="0" required>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="mb-3">
+                        <label for="total_price" class="form-label">Total (R$)</label>
+                        <input type="number" class="form-control" id="total_price" step="0.01" readonly>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="mb-3">
+                <label for="notes" class="form-label">Observações</label>
+                <textarea class="form-control" id="notes" name="notes" rows="3" placeholder="Observações sobre a venda..."></textarea>
+            </div>
+            
+            <div class="d-flex gap-2">
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-save"></i> Registrar Venda
+                </button>
+                <a href="{{ url_for('sales') }}" class="btn btn-secondary">
+                    <i class="fas fa-times"></i> Cancelar
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const productSelect = document.getElementById('product_id');
+    const quantityInput = document.getElementById('quantity');
+    const unitPriceInput = document.getElementById('unit_price');
+    const totalPriceInput = document.getElementById('total_price');
+    const availableStockSpan = document.getElementById('available_stock');
+    
+    function updateProductInfo() {
+        const selectedOption = productSelect.options[productSelect.selectedIndex];
+        if (selectedOption.value) {
+            const price = selectedOption.dataset.price;
+            const stock = selectedOption.dataset.stock;
+            
+            unitPriceInput.value = price;
+            availableStockSpan.textContent = stock;
+            quantityInput.max = stock;
+            updateTotal();
+        } else {
+            unitPriceInput.value = '';
+            availableStockSpan.textContent = '-';
+            quantityInput.max = '';
+            totalPriceInput.value = '';
+        }
+    }
+    
+    function updateTotal() {
+        const quantity = parseFloat(quantityInput.value) || 0;
+        const unitPrice = parseFloat(unitPriceInput.value) || 0;
+        const total = quantity * unitPrice;
+        totalPriceInput.value = total.toFixed(2);
+    }
+    
+    productSelect.addEventListener('change', updateProductInfo);
+    quantityInput.addEventListener('input', updateTotal);
+    unitPriceInput.addEventListener('input', updateTotal);
+});
+</script>
+{% endblock %}
