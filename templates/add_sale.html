@@ -194,7 +194,10 @@ document.addEventListener('DOMContentLoaded', function() {
     const totalPriceInput = document.getElementById('total_price');
     const availableStockSpan = document.getElementById('available_stock');
     const scanQRBtn = document.getElementById('scanQRBtn');
+    const enterSkuBtn = document.getElementById('enterSkuBtn');
     const stopScanBtn = document.getElementById('stopScanBtn');
+    const searchSkuBtn = document.getElementById('searchSkuBtn');
+    const skuInput = document.getElementById('skuInput');
     const video = document.getElementById('qrVideo');
     const canvas = document.getElementById('qrCanvas');
     const ctx = canvas.getContext('2d');
@@ -330,6 +333,8 @@ document.addEventListener('DOMContentLoaded', function() {
             const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
             const code = jsQR(imageData.data, imageData.width, imageData.height, {
                 inversionAttempts: "attemptBoth",
+                // Tentar detectar com diferentes configurações
+                canOverrideAssumedWhitePoint: true,
             });
             
             if (code && code.data && code.data.trim()) {
@@ -394,6 +399,40 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
     
+    // Função para buscar produto por SKU manual
+    async function searchProductBySKU(sku) {
+        try {
+            document.getElementById('skuSearchResult').style.display = 'none';
+            document.getElementById('skuSearchError').style.display = 'none';
+            
+            const response = await fetch(`/api/search_product_by_sku/${sku}`);
+            
+            if (!response.ok) {
+                throw new Error(`HTTP Error: ${response.status}`);
+            }
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                document.getElementById('skuFoundProductName').textContent = result.product.name;
+                document.getElementById('skuFoundProductSku').textContent = result.product.sku;
+                document.getElementById('skuSearchResult').style.display = 'block';
+                
+                // Selecionar produto na lista
+                if (selectProductBySKU(sku)) {
+                    setTimeout(() => {
+                        bootstrap.Modal.getInstance(document.getElementById('skuInputModal')).hide();
+                    }, 2000);
+                }
+            } else {
+                document.getElementById('skuSearchError').style.display = 'block';
+            }
+        } catch (error) {
+            console.error('Error searching product:', error);
+            document.getElementById('skuSearchError').style.display = 'block';
+        }
+    }
+
     // Event listeners
     productSelect.addEventListener('change', updateProductInfo);
     quantityInput.addEventListener('input', updateTotal);
@@ -414,6 +453,38 @@ document.addEventListener('DOMContentLoaded', function() {
     stopScanBtn.addEventListener('click', function() {
         stopScanning();
         bootstrap.Modal.getInstance(document.getElementById('qrScannerModal')).hide();
+    });
+    
+    // Event listener para o botão de inserir SKU
+    enterSkuBtn.addEventListener('click', function() {
+        // Limpar campos do modal
+        skuInput.value = '';
+        document.getElementById('skuSearchResult').style.display = 'none';
+        document.getElementById('skuSearchError').style.display = 'none';
+        
+        // Abrir modal
+        const modal = new bootstrap.Modal(document.getElementById('skuInputModal'));
+        modal.show();
+        
+        // Focar no input
+        setTimeout(() => skuInput.focus(), 300);
+    });
+    
+    // Event listener para buscar por SKU
+    searchSkuBtn.addEventListener('click', function() {
+        const sku = skuInput.value.trim().toUpperCase();
+        if (sku) {
+            searchProductBySKU(sku);
+        } else {
+            alert('Por favor, digite um SKU válido.');
+        }
+    });
+    
+    // Permitir busca com Enter no input
+    skuInput.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            searchSkuBtn.click();
+        }
     });
     
     // Stop scanning when modal is closed
