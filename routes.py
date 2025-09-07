@@ -114,17 +114,25 @@ def add_product():
         stock_quantity = int(request.form['stock_quantity'])
         min_stock = int(request.form['min_stock'])
         
+        # Generate unique SKU
+        sku = generate_sku()
+        
+        # Generate QR Code
+        qr_code_path = generate_qr_code(sku, name)
+        
         product = Product(
             name=name,
+            sku=sku,
             category=category,
             price=price,
             stock_quantity=stock_quantity,
-            min_stock=min_stock
+            min_stock=min_stock,
+            qr_code_path=qr_code_path
         )
         
         db.session.add(product)
         db.session.commit()
-        flash('Product added successfully!', 'success')
+        flash('Produto adicionado com sucesso! QR Code gerado automaticamente.', 'success')
         return redirect(url_for('products'))
     
     return render_template('add_product.html')
@@ -134,15 +142,28 @@ def edit_product(id):
     product = Product.query.get_or_404(id)
     
     if request.method == 'POST':
+        old_sku = product.sku
         product.name = request.form['name']
+        product.sku = request.form['sku']
         product.category = request.form['category']
         product.price = float(request.form['price'])
         product.stock_quantity = int(request.form['stock_quantity'])
         product.min_stock = int(request.form['min_stock'])
         product.updated_at = datetime.utcnow()
         
+        # Regenerate QR Code if SKU changed
+        if old_sku != product.sku:
+            # Remove old QR Code file if exists
+            if product.qr_code_path and old_sku:
+                old_file_path = os.path.join('static', f'qrcodes/{old_sku}.png')
+                if os.path.exists(old_file_path):
+                    os.remove(old_file_path)
+            
+            # Generate new QR Code
+            product.qr_code_path = generate_qr_code(product.sku, product.name)
+        
         db.session.commit()
-        flash('Product updated successfully!', 'success')
+        flash('Produto atualizado com sucesso!', 'success')
         return redirect(url_for('products'))
     
     return render_template('edit_product.html', product=product)
@@ -150,10 +171,36 @@ def edit_product(id):
 @app.route('/products/delete/<int:id>')
 def delete_product(id):
     product = Product.query.get_or_404(id)
+    
+    # Remove QR Code file if exists
+    if product.qr_code_path:
+        qr_file_path = os.path.join('static', product.qr_code_path)
+        if os.path.exists(qr_file_path):
+            os.remove(qr_file_path)
+    
     db.session.delete(product)
     db.session.commit()
-    flash('Product deleted successfully!', 'success')
+    flash('Produto excluído com sucesso!', 'success')
     return redirect(url_for('products'))
+
+@app.route('/api/search_product_by_sku/<sku>')
+def search_product_by_sku(sku):
+    """API endpoint to search product by SKU for QR code scanning"""
+    product = Product.query.filter_by(sku=sku).first()
+    if product:
+        return jsonify({
+            'success': True,
+            'product': {
+                'id': product.id,
+                'name': product.name,
+                'sku': product.sku,
+                'price': product.price,
+                'stock_quantity': product.stock_quantity,
+                'category': product.category
+            }
+        })
+    else:
+        return jsonify({'success': False, 'message': 'Produto não encontrado'})
 
 @app.route('/inventory')
 def inventory():

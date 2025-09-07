@@ -33,9 +33,11 @@
                 <thead>
                     <tr>
                         <th>Nome</th>
+                        <th>SKU</th>
                         <th>Categoria</th>
                         <th>Preço</th>
                         <th>Estoque</th>
+                        <th>QR Code</th>
                         <th>Status</th>
                         <th>Ações</th>
                     </tr>
@@ -44,9 +46,20 @@
                     {% for product in products %}
                     <tr>
                         <td>{{ product.name }}</td>
+                        <td><code>{{ product.sku }}</code></td>
                         <td>{{ product.category }}</td>
                         <td>R$ {{ "%.2f"|format(product.price) }}</td>
                         <td>{{ product.stock_quantity }}</td>
+                        <td>
+                            {% if product.qr_code_path %}
+                            <img src="{{ url_for('static', filename=product.qr_code_path) }}" 
+                                 alt="QR Code" class="qr-code-thumbnail" 
+                                 style="width: 50px; height: 50px; cursor: pointer;"
+                                 onclick="showQRCode('{{ url_for('static', filename=product.qr_code_path) }}', '{{ product.name }}', '{{ product.sku }}')">
+                            {% else %}
+                            <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
                         <td>
                             {% if product.stock_quantity <= product.min_stock %}
                                 <span class="badge bg-warning">Estoque Baixo</span>
@@ -89,4 +102,35 @@
         {% endif %}
     </div>
 </div>
+
+<!-- Modal para exibir QR Code -->
+<div class="modal fade" id="qrCodeModal" tabindex="-1" aria-labelledby="qrCodeModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="qrCodeModalLabel">QR Code do Produto</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body text-center">
+                <img id="qrCodeImage" src="" alt="QR Code" class="img-fluid mb-3" style="max-width: 300px;">
+                <h6 id="qrProductName"></h6>
+                <p class="text-muted">SKU: <code id="qrProductSku"></code></p>
+                <small class="text-muted">Escaneie este código para identificar o produto rapidamente nas vendas.</small>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function showQRCode(imagePath, productName, productSku) {
+    document.getElementById('qrCodeImage').src = imagePath;
+    document.getElementById('qrProductName').textContent = productName;
+    document.getElementById('qrProductSku').textContent = productSku;
+    
+    const modal = new bootstrap.Modal(document.getElementById('qrCodeModal'));
+    modal.show();
+}
+</script>
 {% endblock %}

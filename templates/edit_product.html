@@ -14,13 +14,20 @@
     <div class="card-body">
         <form method="POST">
             <div class="row">
-                <div class="col-md-6">
+                <div class="col-md-4">
                     <div class="mb-3">
                         <label for="name" class="form-label">Nome do Produto *</label>
                         <input type="text" class="form-control" id="name" name="name" value="{{ product.name }}" required>
                     </div>
                 </div>
-                <div class="col-md-6">
+                <div class="col-md-4">
+                    <div class="mb-3">
+                        <label for="sku" class="form-label">SKU *</label>
+                        <input type="text" class="form-control" id="sku" name="sku" value="{{ product.sku }}" required>
+                        <div class="form-text">Alterar o SKU irá gerar um novo QR Code</div>
+                    </div>
+                </div>
+                <div class="col-md-4">
                     <div class="mb-3">
                         <label for="category" class="form-label">Categoria *</label>
                         <input type="text" class="form-control" id="category" name="category" value="{{ product.category }}" required>
