@@ -99,7 +99,12 @@
                         Quando solicitado, clique em "Permitir" para usar o scanner de QR Code.
                     </div>
                     
-                    <video id="qrVideo" width="100%" height="300" style="border: 2px solid #ddd; border-radius: 8px; display: none;"></video>
+                    <div style="position: relative; display: inline-block;">
+                        <video id="qrVideo" width="400" height="300" style="border: 2px solid #ddd; border-radius: 8px; display: none;"></video>
+                        <div id="qrOverlay" style="position: absolute; top: 50px; left: 50px; width: 200px; height: 200px; border: 3px solid #007bff; border-style: solid; border-radius: 8px; display: none; pointer-events: none;">
+                            <div style="position: absolute; top: -25px; left: 50%; transform: translateX(-50%); background: #007bff; color: white; padding: 2px 8px; border-radius: 4px; font-size: 12px;">Posicione o QR Code aqui</div>
+                        </div>
+                    </div>
                     <canvas id="qrCanvas" style="display: none;"></canvas>
                     
                     <div id="cameraLoading" class="mt-3">
@@ -202,6 +207,7 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('cameraLoading').style.display = 'none';
         document.getElementById('cameraControls').style.display = 'block';
         document.getElementById('qrVideo').style.display = 'block';
+        document.getElementById('qrOverlay').style.display = 'block';
         document.getElementById('scanResult').style.display = 'none';
         document.getElementById('scanError').style.display = 'none';
     }
@@ -267,6 +273,9 @@ document.addEventListener('DOMContentLoaded', function() {
             stream = null;
         }
         video.srcObject = null;
+        document.getElementById('qrVideo').style.display = 'none';
+        document.getElementById('qrOverlay').style.display = 'none';
+        document.getElementById('cameraControls').style.display = 'none';
     }
     
     function tick() {
@@ -277,12 +286,12 @@ document.addEventListener('DOMContentLoaded', function() {
             
             const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
             const code = jsQR(imageData.data, imageData.width, imageData.height, {
-                inversionAttempts: "dontInvert",
+                inversionAttempts: "attemptBoth",
             });
             
-            if (code) {
+            if (code && code.data && code.data.trim()) {
                 console.log("QR Code detected:", code.data);
-                handleQRCodeDetected(code.data);
+                handleQRCodeDetected(code.data.trim());
             }
         }
         
@@ -293,10 +302,24 @@ document.addEventListener('DOMContentLoaded', function() {
     
     async function handleQRCodeDetected(sku) {
         scanning = false;
+        console.log("Searching for product with SKU:", sku);
         
         try {
             const response = await fetch(`/api/search_product_by_sku/${sku}`);
+            
+            if (!response.ok) {
+                throw new Error(`HTTP Error: ${response.status} ${response.statusText}`);
+            }
+            
+            const contentType = response.headers.get('content-type');
+            if (!contentType || !contentType.includes('application/json')) {
+                const text = await response.text();
+                console.error('Response is not JSON:', text.substring(0, 100));
+                throw new Error('Resposta inválida do servidor');
+            }
+            
             const result = await response.json();
+            console.log("API response:", result);
             
             if (result.success) {
                 document.getElementById('foundProductName').textContent = result.product.name;
@@ -312,6 +335,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     }, 2000);
                 }
             } else {
+                console.log("Product not found for SKU:", sku);
                 document.getElementById('scanError').style.display = 'block';
                 document.getElementById('scanResult').style.display = 'none';
                 scanning = true;
@@ -319,6 +343,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         } catch (error) {
             console.error('Error searching product:', error);
+            alert(`Erro ao buscar produto: ${error.message}`);
             document.getElementById('scanError').style.display = 'block';
             document.getElementById('scanResult').style.display = 'none';
             scanning = true;
