@@ -1,12 +1,44 @@
-from flask import render_template, request, redirect, url_for, flash, session
+from flask import render_template, request, redirect, url_for, flash, session, jsonify
 from app import app, db
 from models import User, Product, Purchase, Sale
 from datetime import datetime, timedelta
 from sqlalchemy import func, and_
+import qrcode
+import os
+import uuid
+from io import BytesIO
+
+def generate_qr_code(sku, product_name):
+    """Generate QR code for a product and save it to static/qrcodes/"""
+    # Create QR code instance
+    qr = qrcode.QRCode(
+        version=1,
+        error_correction=qrcode.constants.ERROR_CORRECT_L,
+        box_size=10,
+        border=4,
+    )
+    
+    # Add data to QR code (SKU)
+    qr.add_data(sku)
+    qr.make(fit=True)
+    
+    # Create image
+    img = qr.make_image(fill_color="black", back_color="white")
+    
+    # Save image
+    filename = f"{sku}.png"
+    filepath = os.path.join('static', 'qrcodes', filename)
+    img.save(filepath)
+    
+    return f"qrcodes/{filename}"
+
+def generate_sku():
+    """Generate a unique SKU for a product"""
+    return f"PRD{str(uuid.uuid4())[:8].upper()}"
 
 @app.before_request
 def require_login():
-    allowed_routes = ['login', 'static']
+    allowed_routes = ['login', 'static', 'search_product_by_sku']
     if request.endpoint not in allowed_routes and 'user_id' not in session:
         return redirect(url_for('login'))
 
