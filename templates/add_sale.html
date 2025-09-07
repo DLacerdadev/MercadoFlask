@@ -93,12 +93,31 @@
             </div>
             <div class="modal-body">
                 <div class="text-center">
-                    <video id="qrVideo" width="100%" height="300" style="border: 2px solid #ddd; border-radius: 8px;"></video>
-                    <canvas id="qrCanvas" style="display: none;"></canvas>
-                    <div class="mt-3">
-                        <p class="text-muted">Posicione o QR Code do produto na frente da câmera</p>
-                        <button type="button" class="btn btn-secondary" id="stopScanBtn">Parar Scanner</button>
+                    <div id="cameraPermissionInfo" class="alert alert-info mb-3">
+                        <i class="fas fa-info-circle"></i> 
+                        <strong>Importante:</strong> Este recurso precisa de acesso à sua câmera. 
+                        Quando solicitado, clique em "Permitir" para usar o scanner de QR Code.
                     </div>
+                    
+                    <video id="qrVideo" width="100%" height="300" style="border: 2px solid #ddd; border-radius: 8px; display: none;"></video>
+                    <canvas id="qrCanvas" style="display: none;"></canvas>
+                    
+                    <div id="cameraLoading" class="mt-3">
+                        <div class="d-flex flex-column align-items-center">
+                            <div class="spinner-border text-primary mb-2" role="status">
+                                <span class="visually-hidden">Carregando...</span>
+                            </div>
+                            <p class="text-muted">Iniciando câmera... Por favor, permita o acesso quando solicitado.</p>
+                        </div>
+                    </div>
+                    
+                    <div id="cameraControls" class="mt-3" style="display: none;">
+                        <p class="text-muted">Posicione o QR Code do produto na frente da câmera</p>
+                        <button type="button" class="btn btn-secondary" id="stopScanBtn">
+                            <i class="fas fa-stop"></i> Parar Scanner
+                        </button>
+                    </div>
+                    
                     <div id="scanResult" class="mt-3" style="display: none;">
                         <div class="alert alert-success">
                             <strong>Produto encontrado:</strong> <span id="foundProductName"></span><br>
@@ -171,17 +190,73 @@ document.addEventListener('DOMContentLoaded', function() {
         return false;
     }
     
+    function showCameraLoading() {
+        document.getElementById('cameraLoading').style.display = 'block';
+        document.getElementById('cameraControls').style.display = 'none';
+        document.getElementById('qrVideo').style.display = 'none';
+        document.getElementById('scanResult').style.display = 'none';
+        document.getElementById('scanError').style.display = 'none';
+    }
+    
+    function showCameraReady() {
+        document.getElementById('cameraLoading').style.display = 'none';
+        document.getElementById('cameraControls').style.display = 'block';
+        document.getElementById('qrVideo').style.display = 'block';
+        document.getElementById('scanResult').style.display = 'none';
+        document.getElementById('scanError').style.display = 'none';
+    }
+
     async function startScanning() {
         try {
-            stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+            // Mostrar loading
+            showCameraLoading();
+            
+            // Verificar se getUserMedia está disponível
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                alert('Seu navegador não suporta acesso à câmera. Use um navegador mais recente.');
+                return;
+            }
+
+            // Solicitar permissão para a câmera
+            stream = await navigator.mediaDevices.getUserMedia({ 
+                video: { 
+                    facingMode: 'environment',
+                    width: { ideal: 640 },
+                    height: { ideal: 480 }
+                } 
+            });
+            
             video.srcObject = stream;
             video.setAttribute('playsinline', true);
-            video.play();
-            scanning = true;
-            requestAnimationFrame(tick);
+            
+            // Aguardar o vídeo carregar antes de iniciar o scan
+            video.onloadedmetadata = () => {
+                showCameraReady();
+                video.play();
+                scanning = true;
+                requestAnimationFrame(tick);
+            };
+            
         } catch (err) {
             console.error('Error accessing camera:', err);
-            alert('Erro ao acessar a câmera. Verifique as permissões.');
+            let errorMessage = 'Erro ao acessar a câmera.\n\n';
+            
+            if (err.name === 'NotAllowedError') {
+                errorMessage += '❌ Permissão negada.\n\nPara usar o scanner:\n1. Clique no ícone da câmera na barra de endereços\n2. Selecione "Permitir" para este site\n3. Tente novamente';
+            } else if (err.name === 'NotFoundError') {
+                errorMessage += '📹 Nenhuma câmera encontrada no dispositivo.';
+            } else if (err.name === 'NotSupportedError') {
+                errorMessage += '🚫 Seu navegador não suporta acesso à câmera.';
+            } else if (err.name === 'SecurityError') {
+                errorMessage += '🔒 Erro de segurança. Certifique-se de estar usando HTTPS.';
+            } else {
+                errorMessage += '⚠️ Verifique se a câmera não está sendo usada por outro aplicativo.';
+            }
+            
+            alert(errorMessage);
+            
+            // Fechar modal em caso de erro
+            bootstrap.Modal.getInstance(document.getElementById('qrScannerModal')).hide();
         }
     }
     
@@ -257,11 +332,15 @@ document.addEventListener('DOMContentLoaded', function() {
     unitPriceInput.addEventListener('input', updateTotal);
     
     scanQRBtn.addEventListener('click', function() {
-        document.getElementById('scanResult').style.display = 'none';
-        document.getElementById('scanError').style.display = 'none';
+        // Resetar o estado visual do modal
+        showCameraLoading();
         const modal = new bootstrap.Modal(document.getElementById('qrScannerModal'));
         modal.show();
-        startScanning();
+        
+        // Aguardar um pouco para o modal aparecer antes de iniciar a câmera
+        setTimeout(() => {
+            startScanning();
+        }, 300);
     });
     
     stopScanBtn.addEventListener('click', function() {
