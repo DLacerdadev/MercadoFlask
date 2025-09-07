@@ -30,9 +30,14 @@
                                 </option>
                                 {% endfor %}
                             </select>
-                            <button type="button" class="btn btn-outline-primary" id="scanQRBtn">
-                                <i class="fas fa-camera"></i> Escanear QR
-                            </button>
+                            <div class="btn-group">
+                                <button type="button" class="btn btn-outline-primary" id="scanQRBtn">
+                                    <i class="fas fa-camera"></i> Escanear QR
+                                </button>
+                                <button type="button" class="btn btn-outline-secondary" id="enterSkuBtn">
+                                    <i class="fas fa-keyboard"></i> SKU
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -135,6 +140,44 @@
                         </div>
                     </div>
                 </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para inserir SKU manualmente -->
+<div class="modal fade" id="skuInputModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Inserir SKU do Produto</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label for="skuInput" class="form-label">Digite o SKU do produto:</label>
+                    <input type="text" class="form-control" id="skuInput" placeholder="Ex: PRD2C864FED" style="font-family: monospace;">
+                    <div class="form-text">
+                        <i class="fas fa-info-circle"></i> Você pode encontrar o SKU na lista de produtos ou no QR Code impresso.
+                    </div>
+                </div>
+                <div id="skuSearchResult" class="mt-3" style="display: none;">
+                    <div class="alert alert-success">
+                        <strong>Produto encontrado:</strong> <span id="skuFoundProductName"></span><br>
+                        <small>SKU: <code id="skuFoundProductSku"></code></small>
+                    </div>
+                </div>
+                <div id="skuSearchError" class="mt-3" style="display: none;">
+                    <div class="alert alert-danger">
+                        <strong>Produto não encontrado!</strong> Verifique se o SKU está correto.
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" id="searchSkuBtn">
+                    <i class="fas fa-search"></i> Buscar Produto
+                </button>
             </div>
         </div>
     </div>
