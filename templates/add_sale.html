@@ -13,18 +13,27 @@
 <div class="card">
     <div class="card-body">
         <form method="POST">
+            <div class="alert alert-info">
+                <i class="fas fa-qrcode"></i> Use o leitor de QR Code para encontrar produtos rapidamente ou selecione manualmente na lista.
+            </div>
+            
             <div class="row">
                 <div class="col-md-6">
                     <div class="mb-3">
                         <label for="product_id" class="form-label">Produto *</label>
-                        <select class="form-select" id="product_id" name="product_id" required>
-                            <option value="">Selecione um produto...</option>
-                            {% for product in products %}
-                            <option value="{{ product.id }}" data-price="{{ product.price }}" data-stock="{{ product.stock_quantity }}">
-                                {{ product.name }} - Estoque: {{ product.stock_quantity }}
-                            </option>
-                            {% endfor %}
-                        </select>
+                        <div class="input-group">
+                            <select class="form-select" id="product_id" name="product_id" required>
+                                <option value="">Selecione um produto...</option>
+                                {% for product in products %}
+                                <option value="{{ product.id }}" data-price="{{ product.price }}" data-stock="{{ product.stock_quantity }}" data-sku="{{ product.sku }}">
+                                    {{ product.name }} - Estoque: {{ product.stock_quantity }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                            <button type="button" class="btn btn-outline-primary" id="scanQRBtn">
+                                <i class="fas fa-camera"></i> Escanear QR
+                            </button>
+                        </div>
                     </div>
                 </div>
                 <div class="col-md-6">
@@ -73,9 +82,43 @@
         </form>
     </div>
 </div>
+
+<!-- Modal para Scanner de QR Code -->
+<div class="modal fade" id="qrScannerModal" tabindex="-1" aria-labelledby="qrScannerModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="qrScannerModalLabel">Escanear QR Code do Produto</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="text-center">
+                    <video id="qrVideo" width="100%" height="300" style="border: 2px solid #ddd; border-radius: 8px;"></video>
+                    <canvas id="qrCanvas" style="display: none;"></canvas>
+                    <div class="mt-3">
+                        <p class="text-muted">Posicione o QR Code do produto na frente da câmera</p>
+                        <button type="button" class="btn btn-secondary" id="stopScanBtn">Parar Scanner</button>
+                    </div>
+                    <div id="scanResult" class="mt-3" style="display: none;">
+                        <div class="alert alert-success">
+                            <strong>Produto encontrado:</strong> <span id="foundProductName"></span><br>
+                            <small>SKU: <code id="foundProductSku"></code></small>
+                        </div>
+                    </div>
+                    <div id="scanError" class="mt-3" style="display: none;">
+                        <div class="alert alert-danger">
+                            <strong>Produto não encontrado!</strong> Verifique se o QR Code está correto.
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     const productSelect = document.getElementById('product_id');
@@ -83,6 +126,13 @@ document.addEventListener('DOMContentLoaded', function() {
     const unitPriceInput = document.getElementById('unit_price');
     const totalPriceInput = document.getElementById('total_price');
     const availableStockSpan = document.getElementById('available_stock');
+    const scanQRBtn = document.getElementById('scanQRBtn');
+    const stopScanBtn = document.getElementById('stopScanBtn');
+    const video = document.getElementById('qrVideo');
+    const canvas = document.getElementById('qrCanvas');
+    const ctx = canvas.getContext('2d');
+    let scanning = false;
+    let stream = null;
     
     function updateProductInfo() {
         const selectedOption = productSelect.options[productSelect.selectedIndex];
@@ -109,9 +159,120 @@ document.addEventListener('DOMContentLoaded', function() {
         totalPriceInput.value = total.toFixed(2);
     }
     
+    function selectProductBySKU(sku) {
+        const options = productSelect.options;
+        for (let i = 0; i < options.length; i++) {
+            if (options[i].dataset.sku === sku) {
+                productSelect.selectedIndex = i;
+                updateProductInfo();
+                return true;
+            }
+        }
+        return false;
+    }
+    
+    async function startScanning() {
+        try {
+            stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+            video.srcObject = stream;
+            video.setAttribute('playsinline', true);
+            video.play();
+            scanning = true;
+            requestAnimationFrame(tick);
+        } catch (err) {
+            console.error('Error accessing camera:', err);
+            alert('Erro ao acessar a câmera. Verifique as permissões.');
+        }
+    }
+    
+    function stopScanning() {
+        scanning = false;
+        if (stream) {
+            stream.getTracks().forEach(track => track.stop());
+            stream = null;
+        }
+        video.srcObject = null;
+    }
+    
+    function tick() {
+        if (video.readyState === video.HAVE_ENOUGH_DATA && scanning) {
+            canvas.height = video.videoHeight;
+            canvas.width = video.videoWidth;
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            
+            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            const code = jsQR(imageData.data, imageData.width, imageData.height, {
+                inversionAttempts: "dontInvert",
+            });
+            
+            if (code) {
+                console.log("QR Code detected:", code.data);
+                handleQRCodeDetected(code.data);
+            }
+        }
+        
+        if (scanning) {
+            requestAnimationFrame(tick);
+        }
+    }
+    
+    async function handleQRCodeDetected(sku) {
+        scanning = false;
+        
+        try {
+            const response = await fetch(`/api/search_product_by_sku/${sku}`);
+            const result = await response.json();
+            
+            if (result.success) {
+                document.getElementById('foundProductName').textContent = result.product.name;
+                document.getElementById('foundProductSku').textContent = result.product.sku;
+                document.getElementById('scanResult').style.display = 'block';
+                document.getElementById('scanError').style.display = 'none';
+                
+                // Selecionar produto
+                if (selectProductBySKU(sku)) {
+                    setTimeout(() => {
+                        bootstrap.Modal.getInstance(document.getElementById('qrScannerModal')).hide();
+                        stopScanning();
+                    }, 2000);
+                }
+            } else {
+                document.getElementById('scanError').style.display = 'block';
+                document.getElementById('scanResult').style.display = 'none';
+                scanning = true;
+                requestAnimationFrame(tick);
+            }
+        } catch (error) {
+            console.error('Error searching product:', error);
+            document.getElementById('scanError').style.display = 'block';
+            document.getElementById('scanResult').style.display = 'none';
+            scanning = true;
+            requestAnimationFrame(tick);
+        }
+    }
+    
+    // Event listeners
     productSelect.addEventListener('change', updateProductInfo);
     quantityInput.addEventListener('input', updateTotal);
     unitPriceInput.addEventListener('input', updateTotal);
+    
+    scanQRBtn.addEventListener('click', function() {
+        document.getElementById('scanResult').style.display = 'none';
+        document.getElementById('scanError').style.display = 'none';
+        const modal = new bootstrap.Modal(document.getElementById('qrScannerModal'));
+        modal.show();
+        startScanning();
+    });
+    
+    stopScanBtn.addEventListener('click', function() {
+        stopScanning();
+        bootstrap.Modal.getInstance(document.getElementById('qrScannerModal')).hide();
+    });
+    
+    // Stop scanning when modal is closed
+    document.getElementById('qrScannerModal').addEventListener('hidden.bs.modal', function() {
+        stopScanning();
+    });
 });
 </script>
 {% endblock %}
